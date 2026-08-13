@@ -688,6 +688,139 @@
 
     <script src="./js/server-menu.js"></script>
 
+    <script>
+"use strict";
+
+/*
+=========================================================
+ MYCRAFT — MAIN MENU CONTROLLER
+=========================================================
+*/
+
+(function () {
+
+    const menu =
+        document.getElementById("menu");
+
+    if (!menu) {
+        return;
+    }
+
+
+    /*
+    =====================================================
+    ДОБАВЛЯЕМ КНОПКУ СЕРВЕРОВ
+    =====================================================
+    */
+
+    const playButton =
+        document.getElementById("play");
+
+
+    if (!playButton) {
+        return;
+    }
+
+
+    const serversButton =
+        document.createElement("button");
+
+
+    serversButton.type =
+        "button";
+
+
+    serversButton.className =
+        "button secondary";
+
+
+    serversButton.textContent =
+        "🌐 Серверы";
+
+
+    serversButton.style.marginTop =
+        "12px";
+
+
+    /*
+    =====================================================
+    ВСТАВЛЯЕМ ПОСЛЕ PLAY
+    =====================================================
+    */
+
+    playButton.insertAdjacentElement(
+        "afterend",
+        serversButton
+    );
+
+
+    /*
+    =====================================================
+    ОТКРЫТИЕ МЕНЮ СЕРВЕРОВ
+    =====================================================
+    */
+
+    serversButton.addEventListener(
+        "click",
+        function () {
+
+            if (
+                window.MyCraftServers &&
+                typeof
+                    window.MyCraftServers.open ===
+                    "function"
+            ) {
+
+                window.MyCraftServers.open();
+
+            }
+            else {
+
+                console.error(
+                    "[MyCraft] " +
+                    "Server menu is not loaded."
+                );
+
+            }
+
+        }
+    );
+
+
+    /*
+    =====================================================
+    ESC ЗАКРЫВАЕТ МЕНЮ СЕРВЕРОВ
+    =====================================================
+    */
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
+
+            if (
+                event.key !== "Escape"
+            ) {
+                return;
+            }
+
+
+            if (
+                window.MyCraftServers &&
+                typeof
+                    window.MyCraftServers.close ===
+                    "function"
+            ) {
+
+                window.MyCraftServers.close();
+
+            }
+
+        }
+    );
+
+})();
+    </script>
+
 </body>
 
   </html>
