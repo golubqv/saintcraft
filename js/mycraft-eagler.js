@@ -2,33 +2,22 @@
 
 /*
 =========================================================
- MYCRAFT — EAGLERCRAFT BRIDGE
+ MYCRAFT — EAGLERCRAFT RUNTIME BRIDGE
 =========================================================
 
-Этот файл является "мостом" между интерфейсом MyCraft
-и браузерным Minecraft-клиентом.
+Связь:
 
-Меню миров:
-    MyCraftWorlds
-
-Меню серверов:
-    MyCraftServers
-
-Игровой клиент:
-    MyCraftEagler
-
-Сейчас мост умеет:
-
-    • запускать клиент
-    • открывать выбранный мир
-    • подключаться к серверу
-    • возвращаться в меню
-    • отслеживать состояние игры
-    • отправлять события
-
-Когда будет подключён настоящий клиент, здесь можно
-будет заменить только внутреннюю реализацию, не
-переписывая весь интерфейс MyCraft.
+Главное меню
+    ↓
+World Menu / Server Menu
+    ↓
+MyCraftEagler
+    ↓
+MyCraftEaglerLoader
+    ↓
+Легально полученный Eaglercraft-клиент
+    ↓
+Canvas / Minecraft
 =========================================================
 */
 
@@ -44,39 +33,17 @@ const MyCraftEagler = (() => {
 
     const CONFIG = {
 
-        /*
-        Контейнер игрового клиента.
-        */
+        gameId:
+            "mycraft-game",
 
         containerId:
             "game_frame",
 
+        gameElementId:
+            "game",
 
-        /*
-        Путь к JS-клиенту.
-
-        Файл появится после подготовки
-        легальной сборки Eaglercraft.
-        */
-
-        clientScript:
-            "./client/classes.js",
-
-
-        /*
-        Путь к ресурсам.
-        */
-
-        assets:
-            "./client/assets.epk",
-
-
-        /*
-        Таймаут загрузки.
-        */
-
-        loadTimeout:
-            60000
+        menuElementId:
+            "menu"
 
     };
 
@@ -92,13 +59,13 @@ const MyCraftEagler = (() => {
         initialized:
             false,
 
+        running:
+            false,
+
         loading:
             false,
 
-        loaded:
-            false,
-
-        playing:
+        ready:
             false,
 
         mode:
@@ -110,10 +77,10 @@ const MyCraftEagler = (() => {
         server:
             null,
 
-        clientScript:
+        canvas:
             null,
 
-        canvas:
+        error:
             null
 
     };
@@ -128,14 +95,8 @@ const MyCraftEagler = (() => {
     const events = {};
 
 
-    /*
-    =====================================================
-    ON
-    =====================================================
-    */
-
     function on(
-        event,
+        name,
         callback
     ) {
 
@@ -150,34 +111,28 @@ const MyCraftEagler = (() => {
 
 
         if (
-            !events[event]
+            !events[name]
         ) {
 
-            events[event] = [];
+            events[name] = [];
 
         }
 
 
-        events[event].push(
+        events[name].push(
             callback
         );
 
     }
 
 
-    /*
-    =====================================================
-    OFF
-    =====================================================
-    */
-
     function off(
-        event,
+        name,
         callback
     ) {
 
         if (
-            !events[event]
+            !events[name]
         ) {
 
             return;
@@ -185,8 +140,8 @@ const MyCraftEagler = (() => {
         }
 
 
-        events[event] =
-            events[event].filter(
+        events[name] =
+            events[name].filter(
                 item =>
                     item !== callback
             );
@@ -194,23 +149,13 @@ const MyCraftEagler = (() => {
     }
 
 
-    /*
-    =====================================================
-    EMIT
-    =====================================================
-    */
-
     function emit(
-        event,
+        name,
         data
     ) {
 
-        const listeners =
-            events[event];
-
-
         if (
-            !listeners
+            !events[name]
         ) {
 
             return;
@@ -218,7 +163,7 @@ const MyCraftEagler = (() => {
         }
 
 
-        listeners.forEach(
+        events[name].forEach(
             callback => {
 
                 try {
@@ -231,8 +176,7 @@ const MyCraftEagler = (() => {
                 catch (error) {
 
                     console.error(
-                        "[MyCraftEagler] " +
-                        "Event error:",
+                        "[MyCraftEagler]",
                         error
                     );
 
@@ -246,27 +190,108 @@ const MyCraftEagler = (() => {
 
     /*
     =====================================================
-    GET CONTAINER
+    ELEMENTS
     =====================================================
     */
 
+    function getGame() {
+
+        return document.getElementById(
+            CONFIG.gameElementId
+        );
+
+    }
+
+
+    function getMenu() {
+
+        return document.getElementById(
+            CONFIG.menuElementId
+        );
+
+    }
+
+
     function getContainer() {
 
-        const container =
-            document.getElementById(
-                CONFIG.containerId
-            );
+        return document.getElementById(
+            CONFIG.containerId
+        );
+
+    }
 
 
-        if (!container) {
+    /*
+    =====================================================
+    CREATE GAME CONTAINER
+    =====================================================
+    */
+
+    function ensureContainer() {
+
+        const game =
+            getGame();
+
+
+        if (!game) {
 
             throw new Error(
-                "Игровой контейнер #" +
-                CONFIG.containerId +
-                " не найден."
+                "Элемент #game не найден."
             );
 
         }
+
+
+        let container =
+            getContainer();
+
+
+        if (
+            container
+        ) {
+
+            return container;
+
+        }
+
+
+        container =
+            document.createElement(
+                "div"
+            );
+
+
+        container.id =
+            CONFIG.containerId;
+
+
+        container.style.position =
+            "absolute";
+
+
+        container.style.inset =
+            "0";
+
+
+        container.style.width =
+            "100%";
+
+
+        container.style.height =
+            "100%";
+
+
+        container.style.overflow =
+            "hidden";
+
+
+        container.style.background =
+            "#000";
+
+
+        game.appendChild(
+            container
+        );
 
 
         return container;
@@ -276,58 +301,38 @@ const MyCraftEagler = (() => {
 
     /*
     =====================================================
-    LOADING SCREEN
+    SHOW GAME
     =====================================================
     */
 
-    function setLoading(
-        visible,
-        text
-    ) {
+    function showGame() {
 
-        const loading =
-            document.getElementById(
-                "loading"
-            );
+        const game =
+            getGame();
 
 
-        if (!loading) {
-
-            return;
-
-        }
+        const menu =
+            getMenu();
 
 
-        if (visible) {
+        if (
+            menu
+        ) {
 
-            loading.classList.remove(
-                "hidden"
-            );
-
-        }
-        else {
-
-            loading.classList.add(
+            menu.classList.add(
                 "hidden"
             );
 
         }
 
 
-        if (text) {
+        if (
+            game
+        ) {
 
-            const textElement =
-                loading.querySelector(
-                    ".loading-text"
-                );
-
-
-            if (textElement) {
-
-                textElement.textContent =
-                    text;
-
-            }
+            game.classList.add(
+                "active"
+            );
 
         }
 
@@ -336,60 +341,120 @@ const MyCraftEagler = (() => {
 
     /*
     =====================================================
-    ERROR
+    HIDE GAME
     =====================================================
     */
+
+    function hideGame() {
+
+        const game =
+            getGame();
+
+
+        if (
+            game
+        ) {
+
+            game.classList.remove(
+                "active"
+            );
+
+        }
+
+
+        const menu =
+            getMenu();
+
+
+        if (
+            menu
+        ) {
+
+            menu.classList.remove(
+                "hidden"
+            );
+
+        }
+
+    }
+
+
+    /*
+    =====================================================
+    LOADING UI
+    =====================================================
+    */
+
+    function showLoading(
+        text,
+        progress
+    ) {
+
+        if (
+            window.MyCraftGameUI
+        ) {
+
+            MyCraftGameUI.show(
+                text,
+                progress
+            );
+
+        }
+
+    }
+
+
+    function setLoading(
+        text,
+        progress
+    ) {
+
+        if (
+            window.MyCraftGameUI
+        ) {
+
+            MyCraftGameUI.setStatus(
+                text
+            );
+
+
+            MyCraftGameUI.setProgress(
+                progress
+            );
+
+        }
+
+    }
+
+
+    function hideLoading() {
+
+        if (
+            window.MyCraftGameUI
+        ) {
+
+            MyCraftGameUI.hide();
+
+        }
+
+    }
+
 
     function showError(
         message
     ) {
 
-        const loading =
-            document.getElementById(
-                "loading"
-            );
+        state.error =
+            message;
 
 
-        if (!loading) {
+        if (
+            window.MyCraftGameUI
+        ) {
 
-            alert(
+            MyCraftGameUI.setError(
                 message
             );
-
-            return;
-
-        }
-
-
-        loading.classList.remove(
-            "hidden"
-        );
-
-
-        const loader =
-            loading.querySelector(
-                ".loader"
-            );
-
-
-        if (loader) {
-
-            loader.style.display =
-                "none";
-
-        }
-
-
-        const text =
-            loading.querySelector(
-                ".loading-text"
-            );
-
-
-        if (text) {
-
-            text.textContent =
-                message;
 
         }
 
@@ -406,163 +471,57 @@ const MyCraftEagler = (() => {
 
     /*
     =====================================================
-    CREATE OPTIONS
+    LOADER
     =====================================================
     */
 
-    function createOptions() {
-
-        /*
-        EaglercraftX использует
-        window.eaglercraftXOpts.
-
-        Не перезаписываем объект,
-        если он уже создан загрузчиком.
-        */
+    function getLoader() {
 
         if (
-            !window.eaglercraftXOpts
+            window.MyCraftEaglerLoader
         ) {
 
-            window.eaglercraftXOpts = {};
+            return (
+                window.MyCraftEaglerLoader
+            );
 
         }
 
 
-        const options =
-            window.eaglercraftXOpts;
-
-
-        options.container =
-            CONFIG.containerId;
-
-
-        options.assetsURI =
-            CONFIG.assets;
-
-
-        /*
-        База миров.
-        */
-
-        options.worldsDB =
-            "mycraft_worlds";
-
-
-        /*
-        Namespace localStorage.
-        */
-
-        options.localStorageNamespace =
-            "_mycraft_eagler";
-
-
-        return options;
+        return null;
 
     }
 
 
     /*
     =====================================================
-    LOAD SCRIPT
+    CONNECT LOADER
     =====================================================
     */
 
-    function loadClientScript() {
+    function connectLoader() {
 
-        return new Promise(
-            (
-                resolve,
-                reject
-            ) => {
+        const loader =
+            getLoader();
 
 
-                /*
-                Уже загружен.
-                */
+        if (!loader) {
 
-                if (
-                    state.loaded
-                ) {
+            console.warn(
+                "[MyCraftEagler] " +
+                "Loader не найден."
+            );
 
-                    resolve();
+            return;
 
-                    return;
-
-                }
+        }
 
 
-                /*
-                Уже загружается.
-                */
+        loader.on(
+            "state",
+            data => {
 
-                if (
-                    state.loading
-                ) {
-
-                    const started =
-                        Date.now();
-
-
-                    const wait =
-                        setInterval(
-                            () => {
-
-                                if (
-                                    state.loaded
-                                ) {
-
-                                    clearInterval(
-                                        wait
-                                    );
-
-                                    resolve();
-
-                                    return;
-
-                                }
-
-
-                                if (
-                                    !state.loading
-                                ) {
-
-                                    clearInterval(
-                                        wait
-                                    );
-
-                                    reject(
-                                        new Error(
-                                            "Загрузка клиента завершилась ошибкой."
-                                        )
-                                    );
-
-                                    return;
-
-                                }
-
-
-                                if (
-                                    Date.now() -
-                                    started >
-                                    CONFIG.loadTimeout
-                                ) {
-
-                                    clearInterval(
-                                        wait
-                                    );
-
-                                    reject(
-                                        new Error(
-                                            "Истекло время ожидания загрузки клиента."
-                                        )
-                                    );
-
-                                }
-
-                            },
-                            100
-                        );
+                if (!data) {
 
                     return;
 
@@ -570,216 +529,113 @@ const MyCraftEagler = (() => {
 
 
                 state.loading =
-                    true;
-
-
-                emit(
-                    "loading",
-                    {
-                        progress: 0
-                    }
-                );
-
-
-                /*
-                Создаём options
-                ДО загрузки клиента.
-                */
-
-                createOptions();
-
-
-                /*
-                Проверяем,
-                существует ли script.
-                */
-
-                const existing =
-                    document.querySelector(
-                        'script[data-mycraft-client="true"]'
-                    );
+                    data.status ===
+                    "loading";
 
 
                 if (
-                    existing
+                    data.status ===
+                    "checking"
                 ) {
 
-                    state.clientScript =
-                        existing;
-
-                    state.loaded =
-                        true;
-
-                    state.loading =
-                        false;
-
-
-                    emit(
-                        "loaded"
+                    setLoading(
+                        "Проверка клиента...",
+                        data.progress
                     );
-
-
-                    resolve();
-
-                    return;
 
                 }
 
 
-                /*
-                Создаём script.
-                */
+                if (
+                    data.status ===
+                    "found"
+                ) {
 
-                const script =
-                    document.createElement(
-                        "script"
+                    setLoading(
+                        "Клиент найден...",
+                        data.progress
                     );
 
-
-                script.src =
-                    CONFIG.clientScript;
+                }
 
 
-                script.async =
+                if (
+                    data.status ===
+                    "loading"
+                ) {
+
+                    setLoading(
+                        "Загрузка Minecraft-клиента...",
+                        data.progress
+                    );
+
+                }
+
+
+                if (
+                    data.status ===
+                    "loaded"
+                ) {
+
+                    setLoading(
+                        "Клиент загружен...",
+                        100
+                    );
+
+                }
+
+
+                if (
+                    data.status ===
+                    "error"
+                ) {
+
+                    showError(
+                        data.error ||
+                        "Ошибка загрузки клиента."
+                    );
+
+                }
+
+            }
+        );
+
+
+        loader.on(
+            "loaded",
+            () => {
+
+                state.loading =
+                    false;
+
+                state.ready =
+                    true;
+
+
+                emit(
+                    "clientLoaded"
+                );
+
+            }
+        );
+
+
+        loader.on(
+            "error",
+            error => {
+
+                state.loading =
+                    false;
+
+                state.ready =
                     false;
 
 
-                script.dataset.mycraftClient =
-                    "true";
-
-
-                let finished =
-                    false;
-
-
-                const timeout =
-                    setTimeout(
-                        () => {
-
-                            if (
-                                finished
-                            ) {
-
-                                return;
-
-                            }
-
-
-                            finished =
-                                true;
-
-
-                            state.loading =
-                                false;
-
-
-                            reject(
-                                new Error(
-                                    "Eaglercraft client не загрузился за отведённое время."
-                                )
-                            );
-
-                        },
-                        CONFIG.loadTimeout
-                    );
-
-
-                /*
-                УСПЕХ
-                */
-
-                script.onload =
-                    () => {
-
-                        if (
-                            finished
-                        ) {
-
-                            return;
-
-                        }
-
-
-                        finished =
-                            true;
-
-
-                        clearTimeout(
-                            timeout
-                        );
-
-
-                        state.clientScript =
-                            script;
-
-
-                        state.loaded =
-                            true;
-
-
-                        state.loading =
-                            false;
-
-
-                        emit(
-                            "loading",
-                            {
-                                progress: 100
-                            }
-                        );
-
-
-                        emit(
-                            "loaded"
-                        );
-
-
-                        resolve();
-
-                    };
-
-
-                /*
-                ОШИБКА
-                */
-
-                script.onerror =
-                    () => {
-
-                        if (
-                            finished
-                        ) {
-
-                            return;
-
-                        }
-
-
-                        finished =
-                            true;
-
-
-                        clearTimeout(
-                            timeout
-                        );
-
-
-                        state.loading =
-                            false;
-
-
-                        reject(
-                            new Error(
-                                "Не удалось загрузить " +
-                                CONFIG.clientScript
-                            )
-                        );
-
-                    };
-
-
-                document.head.appendChild(
-                    script
+                showError(
+                    error &&
+                    error.message
+                        ? error.message
+                        : "Неизвестная ошибка."
                 );
 
             }
@@ -790,224 +646,156 @@ const MyCraftEagler = (() => {
 
     /*
     =====================================================
-    START
+    FIND CANVAS
     =====================================================
     */
 
-    async function start() {
-
-        if (
-            state.playing
-        ) {
-
-            return;
-
-        }
-
-
-        try {
-
-            const game =
-                document.getElementById(
-                    "game"
-                );
-
-
-            const menu =
-                document.getElementById(
-                    "menu"
-                );
-
-
-            if (
-                menu
-            ) {
-
-                menu.classList.add(
-                    "hidden"
-                );
-
-            }
-
-
-            if (
-                game
-            ) {
-
-                game.classList.add(
-                    "active"
-                );
-
-            }
-
-
-            setLoading(
-                true,
-                "Подготовка Minecraft-клиента..."
-            );
-
-
-            emit(
-                "starting"
-            );
-
-
-            await loadClientScript();
-
-
-            state.initialized =
-                true;
-
-
-            state.playing =
-                true;
-
-
-            emit(
-                "started"
-            );
-
-
-            waitForCanvas();
-
-
-        }
-        catch (error) {
-
-            state.playing =
-                false;
-
-
-            console.error(
-                "[MyCraftEagler]",
-                error
-            );
-
-
-            showError(
-                error.message
-            );
-
-        }
-
-    }
-
-
-    /*
-    =====================================================
-    WAIT FOR CANVAS
-    =====================================================
-    */
-
-    function waitForCanvas() {
+    function findCanvas() {
 
         const container =
             getContainer();
 
 
-        let attempts =
-            0;
+        if (!container) {
+
+            return null;
+
+        }
 
 
-        const maxAttempts =
-            200;
-
-
-        const timer =
-            setInterval(
-                () => {
-
-                    attempts++;
-
-
-                    const canvas =
-                        container.querySelector(
-                            "canvas"
-                        );
-
-
-                    if (
-                        canvas
-                    ) {
-
-                        clearInterval(
-                            timer
-                        );
-
-
-                        state.canvas =
-                            canvas;
-
-
-                        state.playing =
-                            true;
-
-
-                        prepareCanvas(
-                            canvas
-                        );
-
-
-                        setLoading(
-                            false
-                        );
-
-
-                        emit(
-                            "canvas",
-                            canvas
-                        );
-
-
-                        emit(
-                            "ready"
-                        );
-
-
-                        return;
-
-                    }
-
-
-                    if (
-                        attempts >=
-                        maxAttempts
-                    ) {
-
-                        clearInterval(
-                            timer
-                        );
-
-
-                        /*
-                        Не считаем отсутствие
-                        canvas мгновенной
-                        критической ошибкой.
-                        */
-
-                        console.warn(
-                            "[MyCraftEagler] " +
-                            "Canvas пока не найден."
-                        );
-
-                    }
-
-                },
-                100
+        const canvas =
+            container.querySelector(
+                "canvas"
             );
+
+
+        if (
+            canvas
+        ) {
+
+            state.canvas =
+                canvas;
+
+
+            prepareCanvas(
+                canvas
+            );
+
+
+            return canvas;
+
+        }
+
+
+        return null;
 
     }
 
 
     /*
     =====================================================
-    CANVAS
+    WAIT CANVAS
+    =====================================================
+    */
+
+    function waitForCanvas() {
+
+        return new Promise(
+            resolve => {
+
+                let attempts =
+                    0;
+
+
+                const maxAttempts =
+                    300;
+
+
+                const timer =
+                    setInterval(
+                        () => {
+
+                            attempts++;
+
+
+                            const canvas =
+                                findCanvas();
+
+
+                            if (
+                                canvas
+                            ) {
+
+                                clearInterval(
+                                    timer
+                                );
+
+
+                                state.running =
+                                    true;
+
+
+                                state.ready =
+                                    true;
+
+
+                                emit(
+                                    "ready",
+                                    {
+                                        canvas
+                                    }
+                                );
+
+
+                                resolve(
+                                    canvas
+                                );
+
+
+                                return;
+
+                            }
+
+
+                            if (
+                                attempts >=
+                                maxAttempts
+                            ) {
+
+                                clearInterval(
+                                    timer
+                                );
+
+
+                                resolve(
+                                    null
+                                );
+
+                            }
+
+                        },
+                        100
+                    );
+
+            }
+        );
+
+    }
+
+
+    /*
+    =====================================================
+    PREPARE CANVAS
     =====================================================
     */
 
     function prepareCanvas(
         canvas
     ) {
+
+        canvas.style.display =
+            "block";
+
 
         canvas.style.width =
             "100%";
@@ -1017,9 +805,17 @@ const MyCraftEagler = (() => {
             "100%";
 
 
-        canvas.style.display =
-            "block";
+        canvas.style.touchAction =
+            "none";
 
+
+        /*
+        Minecraft сам обрабатывает
+        игровой ввод.
+
+        Мы только запрещаем
+        стандартное context menu.
+        */
 
         canvas.addEventListener(
             "contextmenu",
@@ -1029,6 +825,205 @@ const MyCraftEagler = (() => {
 
             }
         );
+
+
+        /*
+        На мобильных устройствах
+        браузер не должен прокручивать
+        страницу во время игры.
+        */
+
+        canvas.addEventListener(
+            "touchstart",
+            event => {
+
+                event.preventDefault();
+
+            },
+            {
+                passive:
+                    false
+            }
+        );
+
+
+        canvas.addEventListener(
+            "touchmove",
+            event => {
+
+                event.preventDefault();
+
+            },
+            {
+                passive:
+                    false
+            }
+        );
+
+    }
+
+
+    /*
+    =====================================================
+    START CLIENT
+    =====================================================
+    */
+
+    async function start() {
+
+        if (
+            state.running
+        ) {
+
+            return true;
+
+        }
+
+
+        ensureContainer();
+
+        showGame();
+
+
+        showLoading(
+            "Запуск клиента...",
+            0
+        );
+
+
+        state.error =
+            null;
+
+
+        state.loading =
+            true;
+
+
+        emit(
+            "starting"
+        );
+
+
+        const loader =
+            getLoader();
+
+
+        if (!loader) {
+
+            const error =
+                "MyCraftEaglerLoader не подключён.";
+
+
+            showError(
+                error
+            );
+
+
+            state.loading =
+                false;
+
+
+            return false;
+
+        }
+
+
+        /*
+        Загружаем клиент.
+        */
+
+        const result =
+            await loader.load();
+
+
+        if (
+            !result ||
+            result.success !== true
+        ) {
+
+            state.loading =
+                false;
+
+
+            showError(
+                result &&
+                result.error
+                    ? result.error
+                    : "Не удалось загрузить игровой клиент."
+            );
+
+
+            return false;
+
+        }
+
+
+        state.loading =
+            false;
+
+
+        state.ready =
+            true;
+
+
+        emit(
+            "loaded"
+        );
+
+
+        /*
+        Даём клиенту время
+        создать canvas.
+        */
+
+        const canvas =
+            await waitForCanvas();
+
+
+        if (!canvas) {
+
+            /*
+            Не обязательно ошибка:
+            конкретная сборка клиента
+            может использовать другой
+            способ создания игрового окна.
+            */
+
+            console.warn(
+                "[MyCraftEagler] " +
+                "Canvas не найден."
+            );
+
+
+            hideLoading();
+
+        }
+        else {
+
+            setLoading(
+                "Игра готова",
+                100
+            );
+
+
+            setTimeout(
+                () => {
+
+                    hideLoading();
+
+                },
+                300
+            );
+
+        }
+
+
+        emit(
+            "started"
+        );
+
+
+        return true;
 
     }
 
@@ -1043,13 +1038,13 @@ const MyCraftEagler = (() => {
         world
     ) {
 
-        if (
-            !world
-        ) {
+        if (!world) {
 
-            throw new Error(
-                "Мир не указан."
+            showError(
+                "Мир не выбран."
             );
+
+            return false;
 
         }
 
@@ -1080,25 +1075,59 @@ const MyCraftEagler = (() => {
 
 
         /*
-        Запускаем клиент.
+        Сначала запускаем клиент.
         */
 
-        await start();
+        const started =
+            await start();
+
+
+        if (!started) {
+
+            return false;
+
+        }
 
 
         /*
-        Здесь позже будет
-        непосредственный вызов
-        API клиента для открытия
-        конкретного сохранения.
+        =================================================
+        ВАЖНО
+        =================================================
+
+        На этом месте нельзя выдумывать API
+        Eaglercraft, которого может не быть
+        в конкретной сборке.
+
+        Когда будет известен API конкретного
+        клиента, сюда добавляется его вызов
+        открытия singleplayer мира.
+
+        Пока передаём информацию через
+        глобальное событие.
+        =================================================
         */
+
+        window.dispatchEvent(
+            new CustomEvent(
+                "mycraft:world",
+                {
+                    detail:
+                        {
+                            ...world
+                        }
+                }
+            )
+        );
 
 
         console.log(
             "[MyCraftEagler] " +
-            "World selected:",
+            "Selected world:",
             world
         );
+
+
+        return true;
 
     }
 
@@ -1113,13 +1142,13 @@ const MyCraftEagler = (() => {
         server
     ) {
 
-        if (
-            !server
-        ) {
+        if (!server) {
 
-            throw new Error(
-                "Сервер не указан."
+            showError(
+                "Сервер не выбран."
             );
+
+            return false;
 
         }
 
@@ -1149,34 +1178,115 @@ const MyCraftEagler = (() => {
         );
 
 
-        await start();
+        const started =
+            await start();
+
+
+        if (!started) {
+
+            return false;
+
+        }
+
+
+        /*
+        Передаём данные серверу
+        через событие.
+
+        Конкретный клиент сможет
+        обработать их своим API.
+        */
+
+        window.dispatchEvent(
+            new CustomEvent(
+                "mycraft:server",
+                {
+                    detail:
+                        {
+                            ...server
+                        }
+                }
+            )
+        );
 
 
         console.log(
             "[MyCraftEagler] " +
-            "Server selected:",
+            "Selected server:",
             server
         );
 
 
-        /*
-        Позже здесь будет вызов
-        функции подключения
-        настоящего Eaglercraft-клиента.
-        */
+        return true;
 
     }
 
 
     /*
     =====================================================
-    RETURN TO MENU
+    FULLSCREEN
+    =====================================================
+    */
+
+    async function fullscreen() {
+
+        const game =
+            getGame();
+
+
+        if (!game) {
+
+            return;
+
+        }
+
+
+        try {
+
+            if (
+                document.fullscreenElement
+            ) {
+
+                await document.exitFullscreen();
+
+                return;
+
+            }
+
+
+            await game.requestFullscreen();
+
+        }
+        catch (error) {
+
+            console.warn(
+                "[MyCraftEagler] " +
+                "Fullscreen:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+    =====================================================
+    RETURN MENU
     =====================================================
     */
 
     function returnToMenu() {
 
-        state.playing =
+        state.running =
+            false;
+
+
+        state.loading =
+            false;
+
+
+        state.ready =
             false;
 
 
@@ -1196,93 +1306,15 @@ const MyCraftEagler = (() => {
             null;
 
 
-        const game =
-            document.getElementById(
-                "game"
-            );
+        hideLoading();
 
 
-        const menu =
-            document.getElementById(
-                "menu"
-            );
-
-
-        if (
-            game
-        ) {
-
-            game.classList.remove(
-                "active"
-            );
-
-        }
-
-
-        if (
-            menu
-        ) {
-
-            menu.classList.remove(
-                "hidden"
-            );
-
-        }
+        hideGame();
 
 
         emit(
             "menu"
         );
-
-    }
-
-
-    /*
-    =====================================================
-    FULLSCREEN
-    =====================================================
-    */
-
-    async function fullscreen() {
-
-        const game =
-            document.getElementById(
-                "game"
-            );
-
-
-        if (!game) {
-
-            return;
-
-        }
-
-
-        try {
-
-            if (
-                !document.fullscreenElement
-            ) {
-
-                await game.requestFullscreen();
-
-            }
-            else {
-
-                await document.exitFullscreen();
-
-            }
-
-        }
-        catch (error) {
-
-            console.warn(
-                "[MyCraftEagler]",
-                "Fullscreen error:",
-                error
-            );
-
-        }
 
     }
 
@@ -1335,40 +1367,19 @@ const MyCraftEagler = (() => {
         }
 
 
-        console.log(
-            "[MyCraftEagler] " +
-            "Bridge initialized."
-        );
-
-
         state.initialized =
             true;
 
 
-        /*
-        Слушаем Escape.
+        ensureContainer();
 
-        Если игра открыта,
-        Escape не уничтожает состояние,
-        а оставляет возможность
-        клиенту самому обработать клавишу.
-        */
 
-        document.addEventListener(
-            "fullscreenchange",
-            () => {
+        connectLoader();
 
-                emit(
-                    "fullscreen",
-                    {
-                        active:
-                            Boolean(
-                                document.fullscreenElement
-                            )
-                    }
-                );
 
-            }
+        console.log(
+            "[MyCraftEagler] " +
+            "Runtime bridge initialized."
         );
 
     }
@@ -1407,7 +1418,7 @@ const MyCraftEagler = (() => {
 
 /*
 =========================================================
- GLOBAL API
+ GLOBAL
 =========================================================
 */
 
@@ -1423,7 +1434,7 @@ window.MyCraftEagler =
 
 document.addEventListener(
     "DOMContentLoaded",
-    () => {
+    function () {
 
         MyCraftEagler.init();
 
